@@ -138,10 +138,14 @@ with DAG('idr_transforms_test', schedule_interval='0 6 * * *', default_args=defa
         sql=f'''
         #standardSQL
         SELECT *, CASE
-        WHEN CurrentDays < 31 AND ExitReason != "Died" THEN "Yes"
+        WHEN CurrentDays < 31 AND LossOfLife = 0 THEN "Yes"
         ELSE "NO"
         END AS CurrentOnTreatment
-        FROM `{PROJECT_ID}.{ART_STAGING_DATASET}.ART_MMD_current_days`
+        FROM 
+        (SELECT *, CASE
+        WHEN ExitReason = "Died" THEN 1
+        ELSE 0
+        END AS LossOfLife FROM `{PROJECT_ID}.{ART_STAGING_DATASET}.ART_MMD_current_days`)
         ''',
         destination_dataset_table = f'{PROJECT_ID}:{ART_STAGING_DATASET}.ART_MMD_Tx_Curr',
         write_disposition='WRITE_TRUNCATE',
