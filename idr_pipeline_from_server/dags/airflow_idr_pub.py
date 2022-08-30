@@ -1,26 +1,43 @@
-'''Import Required Libraries'''
-
-import datetime
-import airflow
+import requests
+from datetime import timedelta, datetime
+from airflow import DAG
+from airflow import models
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 
-'''Define Global Variables'''
-
 GOOGLE_CONN_ID = "google_cloud_default"
-PROJECT_ID= ["INSERT_PROJECT_ID"]
-MMD_BUCKET_NAME = ["INSERT_BUCKET_NAME"]
-STAGING_DATASET = ["INSERT_STAGING_DATASET"]
-LOCATION = ["INSERT_LOCATION"]
-DAG_ID =  ['INSERT_DAG_ID']
+PROJECT_ID= models.Variable.get("PROJECT_ID")
+MMD_BUCKET_NAME = models.Variable.get("MMD_test_bucket")
+LOCATION = models.Variable.get("LOCATION")
+STAGING_DATASET = models.Variable.get("IDR_test")
+webhook = models.Variable.get("mattermost_webhook")
+
+
+def mattermost_alert(context, notifications_webhook=webhook):
+    dag_id = context["dag_run"].dag_id
+    task_id = context["task_instance"].task_id
+    logs_url = context.get("task_instance").log_url
+    headers = {}
+    message = '{"text": "The DAG: '+str(dag_id)+' has failed on task: '+str(task_id)+' Logs can be viewed on: '+str(logs_url)+'"}'
+    response = requests.post(notifications_webhook, headers=headers, data=message)
+    return response
+
+default_args = {
+    'owner': 'SGHI',
+    'depends_on_past': False,
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 2,
+    'retry_delay': timedelta(minutes=3),
+    'on_failure_callback': mattermost_alert
+}
 
 '''Define the DAG'''
 
-with airflow.DAG(
-        DAG_ID,
-        start_date=datetime.datetime(2022, 8, 16),
+with DAG("idr_load_test", start_date=datetime.datetime(2022, 8, 16),
         # Not scheduled, trigger only
-        schedule_interval=None) as dag:
+        schedule_interval=None, 
+        default_args=default_args) as dag:
 
     '''Define the tasks, which will be conducted once the DAG has been triggered by a 
     PubSub Topic through the subscription. The trigger is connected via a Cloud Function'''
