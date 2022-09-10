@@ -4,9 +4,11 @@ from google.auth.transport.requests import AuthorizedSession
 import requests, os
 
 
-'''Following GCP best practices, these credentials should be
+''' 
+Following GCP best practices, these credentials should be
 constructed at start-up time and used throughout
-https://cloud.google.com/apis/docs/client-libraries-best-practices'''
+https://cloud.google.com/apis/docs/client-libraries-best-practices
+'''
 
 AUTH_SCOPE = "https://www.googleapis.com/auth/cloud-platform"
 CREDENTIALS, _ = google.auth.default(scopes=[AUTH_SCOPE])
@@ -63,30 +65,3 @@ def trigger_dag(web_server_url: str, dag_id: str, data: dict) -> str:
         response.raise_for_status()
     else:
         return response.text
-
-"""
-if __name__ == "__main__":
-
-    '''Replace with your values'''
-    dag_id = DAG_ID
-    # Replace with configuration parameters for the DAG run.
-    dag_config = {
-        "owner": "SGHI",
-        "depends_on_past": False,
-        "email_on_failure": False,
-        "email_on_retry": False,
-    }
-    '''Replace web_server_url with the Airflow web server address. To obtain this
-    URL, run the following command for your environment:
-    gcloud composer environments describe example-environment \
-    --location=your-composer-region \
-    --format="value(config.airflowUri)"
-    '''
-    web_server_url = webserver
-
-    response_text = trigger_dag(
-        web_server_url=web_server_url, dag_id=dag_id, data=dag_config
-    )
-
-    print(response_text)
-"""
