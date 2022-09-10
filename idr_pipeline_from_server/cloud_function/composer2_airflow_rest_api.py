@@ -1,22 +1,24 @@
-'''Import required libraries'''
-
 from typing import Any
 import google.auth
 from google.auth.transport.requests import AuthorizedSession
-import requests
+import requests, os
 
 
-'''Following GCP best practices, these credentials should be
+''' 
+Following GCP best practices, these credentials should be
 constructed at start-up time and used throughout
-https://cloud.google.com/apis/docs/client-libraries-best-practices'''
+https://cloud.google.com/apis/docs/client-libraries-best-practices
+'''
 
 AUTH_SCOPE = "https://www.googleapis.com/auth/cloud-platform"
 CREDENTIALS, _ = google.auth.default(scopes=[AUTH_SCOPE])
+DAG_ID = os.environ.get("DAG_ID")
+webserver = os.environ.get("airflow_webserver_url")
 
 
-def make_composer2_web_server_request(url: str, method: str = "GET", **kwargs: Any) -> google.auth.transport.Response:
+def make_airflow_web_server_request(url: str, method: str = "GET", **kwargs: Any) -> google.auth.transport.Response:
     """
-    Make a request to Cloud Composer 2 environment's web server.
+    Make a request to Airflow/Cloud Composer 2 environment's web server.
     Args:
       url: The URL to fetch.
       method: The request method to use ('GET', 'OPTIONS', 'HEAD', 'POST', 'PUT',
@@ -49,48 +51,17 @@ def trigger_dag(web_server_url: str, dag_id: str, data: dict) -> str:
     request_url = f"{web_server_url}/{endpoint}"
     json_data = {"conf": data}
 
-    response = make_composer2_web_server_request(
+    response = make_airflow_web_server_request(
         request_url, method="POST", json=json_data
     )
 
     if response.status_code == 403:
         raise requests.HTTPError(
             "You do not have a permission to perform this operation. "
-            "Check Airflow RBAC roles for your account."
+            "Check Airflow RBAC roles for your account. "
             f"{response.headers} / {response.text}"
         )
     elif response.status_code != 200:
         response.raise_for_status()
     else:
         return response.text
-# [END composer_2_trigger_dag_for_import]
-
-
-if __name__ == "__main__":
-
-    '''Replace with your values'''
-    dag_id = ['INSERT_DAG_ID']
-    # Replace with configuration parameters for the DAG run.
-    dag_config = {
-        "owner": ['INSERT_OWNER_NAME'],
-        "depends_on_past": ['BOOLEAN VALUE, EITHER TRUE OR FALSE'],
-        "email_on_failure": ['BOOLEAN VALUE, EITHER TRUE OR FALSE'],
-        "email_on_retry": ['BOOLEAN VALUE, EITHER TRUE OR FALSE'],
-    }
-    '''Replace web_server_url with the Airflow web server address. To obtain this
-    URL, run the following command for your environment:
-    gcloud composer environments describe example-environment \
-    --location=your-composer-region \
-    --format="value(config.airflowUri)"
-    '''
-    web_server_url = (
-        ["INSERT_AIRFLOW_WEB_SERVER_ADDRESS"]
-    )
-
-    response_text = trigger_dag(
-        web_server_url=web_server_url, dag_id=dag_id, data=dag_config
-    )
-
-    print(response_text)
-
-# [END composer_2_trigger_dag]
