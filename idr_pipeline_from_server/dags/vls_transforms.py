@@ -2,6 +2,7 @@ import requests
 from datetime import timedelta, datetime as dt
 from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.contrib.operators.bigquery_operator import BigQueryOperator
 from airflow import models
 
@@ -30,7 +31,7 @@ with DAG('keemr_vl_transforms_test', schedule_interval='0 4 * * *', default_args
 
     listener = ExternalTaskSensor(
         task_id='waiting_task',
-        external_dag_id='idr_load_stage_test',
+        external_dag_id='keemr_mmd_transforms_test',
         external_task_id='finish_pipeline',
         mode = 'reschedule',
         timeout=600,

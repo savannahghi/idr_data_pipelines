@@ -2,6 +2,7 @@ import requests
 from datetime import timedelta, datetime
 from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.contrib.operators.bigquery_operator import BigQueryOperator
 from airflow import models
 
@@ -34,6 +35,19 @@ default_args = {
 }
 
 with DAG('keemr_mmd_transforms_test', schedule_interval='0 4 * * *', default_args=default_args) as dag:
+
+    ''' 
+        Use ExternalTaskSensor to listen to the idr_load_stage_test DAG and finish_pipeline task
+        when finish_pipeline is finished, keemr_mmd_transforms_test will be triggered
+    '''
+
+    listener = ExternalTaskSensor(
+        task_id='waiting_task',
+        external_dag_id='idr_load_stage_test',
+        external_task_id='finish_pipeline',
+        mode = 'reschedule',
+        timeout=600,
+    )
 
     data_types = BigQueryOperator(
         task_id='assign_appropriate_data_types',
@@ -260,5 +274,5 @@ with DAG('keemr_mmd_transforms_test', schedule_interval='0 4 * * *', default_arg
         dag=dag,
     )
 
-data_types >> deduplicate_ART >> return_heirarchy >> clean_regimen >> date_visit >> tx_curr
+listener >> data_types >> deduplicate_ART >> return_heirarchy >> clean_regimen >> date_visit >> tx_curr
 tx_curr >> tx_curr2 >> mfl_ART >> dates_ART >> hubs_ART >> warehouse_ART >> finish

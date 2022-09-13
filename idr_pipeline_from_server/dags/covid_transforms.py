@@ -8,7 +8,7 @@ from airflow import models
 
 GOOGLE_CONN_ID = "google_cloud_default"
 PROJECT_ID= models.Variable.get("PROJECT_ID")
-COVID_STAGING_DATASET = models.Variable.get("IDR_COVID_test")
+STAGING_DATASET = models.Variable.get("IDR_COVID_test")
 LOCATION = models.Variable.get("LOCATION")
 WAREHOUSE = models.Variable.get("IDR_test")
 MFL = models.Variable.get("MFL")
@@ -117,9 +117,22 @@ with DAG('keemr_covid_transforms_test', schedule_interval='0 4 * * *', default_a
         dag=dag
     )
 
+    warehouse = BigQueryOperator(
+        task_id='covid_warehouse',
+        sql =f'''
+        SELECT * FROM `{PROJECT_ID}.{STAGING_DATASET}.vaccine_status_cleaning`
+        ''',
+        destination_dataset_table = f'{PROJECT_ID}:{WAREHOUSE}.covid',
+        write_disposition='WRITE_TRUNCATE',
+        allow_large_results=True,
+        use_legacy_sql=False,
+        bigquery_conn_id=GOOGLE_CONN_ID,
+        dag=dag
+    )
+
     finish = DummyOperator(
         task_id='finish_pipeline',
         dag=dag,
     )
 
-listener >> deduplicate >> mfl >> status_1 >> status_2 >> finish
+listener >> deduplicate >> mfl >> status_1 >> status_2 >> warehouse >> finish

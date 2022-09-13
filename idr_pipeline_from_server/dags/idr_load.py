@@ -34,6 +34,19 @@ def mattermost_alert(context, notifications_webhook=webhook):
     response = requests.post(notifications_webhook, headers=headers, data=message)
     return response
 
+def load_data():
+    import parquet_solution
+
+    a = parquet_solution.load_table_dataframe(table_id)
+    return a
+
+def publish_messages():
+    import publisher
+
+    topic = models.Variable.get("IDR_publish_messages_test")
+    a = publisher.publish_messages(PROJECT_ID, topic)
+    return a
+
 default_args = {
     'owner': 'SGHI',
     'depends_on_past': False,
@@ -63,7 +76,7 @@ with DAG("idr_load_stage_test", start_date=dt(2022, 9, 9),
 
     load_dataset_MMD = PythonOperator(
         task_id='load_MMD',
-        python_callable=my_function,
+        python_callable=load_data,
         dag=dag
         )
 
@@ -100,6 +113,12 @@ with DAG("idr_load_stage_test", start_date=dt(2022, 9, 9),
         skip_leading_rows = 1,
         )
 
+    publish_events = PythonOperator(
+        task_id='publish_messages',
+        python_callable=publish_messages,
+        dag=dag
+        )
+
     finish_pipeline = DummyOperator(
         task_id = 'finish_pipeline',
         dag = dag
@@ -107,4 +126,5 @@ with DAG("idr_load_stage_test", start_date=dt(2022, 9, 9),
 
 '''Define the task dependencies'''
 
-load_dataset_MMD >> [load_dataset_VLS, load_dataset_HTS, load_dataset_COVID]  >> finish_pipeline
+load_dataset_MMD >> [load_dataset_VLS, load_dataset_HTS, load_dataset_COVID]  >> publish_events
+publish_events >> finish_pipeline

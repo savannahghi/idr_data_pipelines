@@ -19,6 +19,3 @@ def publish_messages(project_id: str, topic_id: str) -> None:
         # When you publish a message, the client returns a future.
         future = publisher.publish(topic_path, data)
         print(future.result())
-
-
-# publish_messages("fyj-342011","test-successful-extracts-to-idr-server")
