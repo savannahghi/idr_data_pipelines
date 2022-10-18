@@ -1,8 +1,6 @@
 import requests
 from datetime import timedelta, datetime as dt
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.contrib.operators.bigquery_operator import BigQueryOperator
 from airflow import models
 
@@ -14,6 +12,8 @@ WAREHOUSE = models.Variable.get("IDR_play")
 MFL = models.Variable.get("mfl")
 
 def alert():
+    import sys
+    sys.path.append('/home/airflow/gcs/dags/idr_play/dependencies')
     import mattermost
     a = mattermost.mattermost_alert()
     return a 
@@ -31,20 +31,8 @@ default_args = {
 
 
 
-with DAG('keemr_covid_transforms_play', schedule_interval='0 3 * * *', default_args=default_args) as dag:
+with DAG('keemr_covid_transforms_play', schedule_interval=None, default_args=default_args) as dag:
 
-    ''' 
-        Use ExternalTaskSensor to listen to the idr_load_stage_play DAG and finish_pipeline task
-        when finish_pipeline is finished, keemr_mmd_transforms_play will be triggered
-    '''
-
-    # listener = ExternalTaskSensor(
-    #     task_id='waiting_task',
-    #     external_dag_id='idr_load_stage__play',
-    #     external_task_id='finish_pipeline',
-    #     mode = 'reschedule',
-    #     timeout=3600,
-    # )
 
     data_types = BigQueryOperator(
         task_id='assign_appropriate_data_types',
@@ -157,10 +145,5 @@ with DAG('keemr_covid_transforms_play', schedule_interval='0 3 * * *', default_a
         dag=dag
     )
 
-    finish = DummyOperator(
-        task_id='finish_pipeline',
-        dag=dag,
-    )
 
-# listener >> 
-data_types >> deduplicate >> mfl >> status_1 >> status_2 >> warehouse >> finish
+data_types >> deduplicate >> mfl >> status_1 >> status_2 >> warehouse

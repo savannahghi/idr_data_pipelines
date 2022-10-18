@@ -1,8 +1,7 @@
 import requests
 from datetime import timedelta, datetime as dt
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.sensors.external_task import ExternalTaskSensor
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.contrib.operators.bigquery_operator import BigQueryOperator
 from airflow import models
 
@@ -13,6 +12,8 @@ LOCATION = models.Variable.get("location")
 WAREHOUSE = models.Variable.get("IDR_play")
 
 def alert():
+    import sys
+    sys.path.append('/home/airflow/gcs/dags/idr_play/dependencies')
     import mattermost
     a = mattermost.mattermost_alert()
     return a 
@@ -28,20 +29,7 @@ default_args = {
     'on_failure_callback': alert
 }
 
-with DAG('keemr_vl_transforms_play', schedule_interval='0 4 * * *', default_args=default_args) as dag:
-
-    ''' 
-        Use ExternalTaskSensor to listen to the idr_load_stage_play DAG and finish_pipeline task
-        when finish_pipeline is finished, keemr_mmd_transforms_play will be triggered
-    '''
-
-    # listener = ExternalTaskSensor(
-    #     task_id='waiting_task',
-    #     external_dag_id='keemr_mmd_transforms__play',
-    #     external_task_id='finish_pipeline',
-    #     mode = 'reschedule',
-    #     timeout=3600,
-    # )
+with DAG('keemr_vl_transforms_play', schedule_interval=None, default_args=default_args) as dag:
 
     data_types = BigQueryOperator(
         task_id='assign_appropriate_data_types',
@@ -259,12 +247,13 @@ with DAG('keemr_vl_transforms_play', schedule_interval='0 4 * * *', default_args
         dag=dag
     )
 
-    finish = DummyOperator(
-        task_id='finish_pipeline',
-        dag=dag,
+    trigger = TriggerDagRunOperator(
+        task_id ='trigger',
+        trigger_dag_id='keemr_hts_transforms_play',
+        execution_date='{{ ds }}',
+        reset_dag_run=True
     )
 
-# listener >> 
 data_types >> deduplicate_VLS >> denullification_VLS >> viral_load >> latest_date >> single_records
 single_records >> VLS_Warehouse >> art_vls >> valid_tests >> vl_suppression >> eligible
-eligible >> art_vls_warehouse >> finish
+eligible >> art_vls_warehouse >> trigger

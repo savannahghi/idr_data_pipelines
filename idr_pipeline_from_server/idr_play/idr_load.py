@@ -2,9 +2,8 @@ import requests, sys
 from datetime import timedelta, datetime as dt
 from airflow import DAG
 from airflow import models
-from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import PythonOperator
-from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
 
 sys.path.append('/home/airflow/gcs/dags/idr_play/dependencies')
@@ -100,13 +99,15 @@ with DAG("idr_load_stage__play", start_date=dt(2022, 9, 9),
         python_callable=publish_messages,
         dag=dag
         )
-
-    finish_pipeline = DummyOperator(
-        task_id = 'finish_pipeline',
-        dag = dag
-        )
+    
+    trigger = TriggerDagRunOperator(
+        task_id ='trigger',
+        trigger_dag_id='keemr_mmd_transforms__play',
+        execution_date='{{ ds }}',
+        reset_dag_run=True
+    )
 
 '''Define the task dependencies'''
 
 load_dataset_MMD >> load_dataset_VLS >> load_dataset_HTS >> load_dataset_COVID >> publish_events
-publish_events >> finish_pipeline
+publish_events >> trigger

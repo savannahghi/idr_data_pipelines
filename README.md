@@ -120,7 +120,7 @@ The DAG defines multiple Transformations, however, they fall into 4 main categor
 3. Enriching the Data.
 4. Storing the Data in the Data Warehouse.
 
-Each *extract type* i.e. COVID, HTS(HIV Testing), MMD(Multi-Month Dispensing) and VLS(Viral Load Suppression) has it's own Transformation process due to the different data they contain. As mentioned before, these transformations will be triggered once the loading data pipeline is finished. The exception is the VLS transformations pipeline that will be triggered once the MMD transformations are done. This is because VLS and MMD data contain a cascade from which VLS data is required for patients on MMD.
+Each *extract type* i.e. COVID, HTS(HIV Testing), MMD(Multi-Month Dispensing) and VLS(Viral Load Suppression) has it's own Transformation process due to the different data they contain. As mentioned before, these transformations will be triggered once the loading data pipeline is finished. MMD transformations are triggered first. Once complete, The VLS transformations pipeline will be triggered. This is because VLS and MMD data contain a cascade from which VLS data is required for patients on MMD. HTS transformations will then be triggered and finally COVID.
 
 For each *extract type's* transformations, the code has descriptive naming and DAG task ID's to explain the transformation done by each task.
 

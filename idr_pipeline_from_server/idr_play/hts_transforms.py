@@ -1,8 +1,7 @@
 import requests
 from datetime import timedelta, datetime as dt
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.sensors.external_task import ExternalTaskSensor
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.contrib.operators.bigquery_operator import BigQueryOperator
 from airflow import models
 
@@ -14,6 +13,8 @@ WAREHOUSE = models.Variable.get("IDR_play")
 MFL = models.Variable.get("mfl")
 
 def alert():
+    import sys
+    sys.path.append('/home/airflow/gcs/dags/idr_play/dependencies')
     import mattermost
     a = mattermost.mattermost_alert()
     return a 
@@ -29,20 +30,7 @@ default_args = {
     'on_failure_callback': alert
 }
 
-with DAG('keemr_hts_transforms_play', schedule_interval='0 3 * * *', default_args=default_args) as dag:
-
-    ''' 
-        Use ExternalTaskSensor to listen to the idr_load_stage_play DAG and finish_pipeline task
-        when finish_pipeline is finished, keemr_mmd_transforms_play will be triggered
-    '''
-
-    # listener = ExternalTaskSensor(
-    #     task_id='waiting_task',
-    #     external_dag_id='idr_load_stage__play',
-    #     external_task_id='finish_pipeline',
-    #     mode = 'reschedule',
-    #     timeout=3600,
-    # )
+with DAG('keemr_hts_transforms_play', schedule_interval=None, default_args=default_args) as dag:
 
     data_types = BigQueryOperator(
         task_id='assign_appropriate_data_types',
@@ -253,11 +241,13 @@ with DAG('keemr_hts_transforms_play', schedule_interval='0 3 * * *', default_arg
         dag=dag
         )
 
-    finish = DummyOperator(
-        task_id='finish_pipeline',
-        dag=dag,
+    trigger = TriggerDagRunOperator(
+        task_id ='trigger',
+        trigger_dag_id='keemr_covid_transforms_play',
+        execution_date='{{ ds }}',
+        reset_dag_run=True
     )
 
-# listener >> 
+
 data_types >> deduplicate >> mfl >> dates >> entrypoint_1 >> entrypoint_2 >> entrypoint_3
-entrypoint_3 >> warehouse_HTS >> summary_1 >> summary_2 >> finish
+entrypoint_3 >> warehouse_HTS >> summary_1 >> summary_2 >> trigger
